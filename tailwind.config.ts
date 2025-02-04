@@ -1,4 +1,5 @@
 import type { Config } from "tailwindcss";
+import catppuccin from "@catppuccin/daisyui";
 
 const config: Config = {
   content: [
@@ -6,15 +7,16 @@ const config: Config = {
     "./src/components/**/*.{js,ts,jsx,tsx,mdx}",
     "./src/app/**/*.{js,ts,jsx,tsx,mdx}",
   ],
-  theme: {
-    extend: {
-      backgroundImage: {
-        "gradient-radial": "radial-gradient(var(--tw-gradient-stops))",
-        "gradient-conic":
-          "conic-gradient(from 180deg at 50% 50%, var(--tw-gradient-stops))",
-      },
-    },
+  plugins: [require("daisyui")],
+  daisyui: {
+    // The top value of this array will be used as the default theme
+    // You can use https://github.com/saadeghi/theme-change to switch between themes
+    themes: [
+      // You can simply select a catppuccin flavor with sane default colors
+      catppuccin("mocha"),
+      // Fallback to default theme
+      "dark",
+    ],
   },
-  plugins: [],
 };
 export default config;
