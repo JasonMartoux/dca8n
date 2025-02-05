@@ -14,6 +14,9 @@ export const GDA_FORWARDER_ADDRESS =
   "0x6DA13Bde224A05a288748d857b9e7DDEffd1dE08";
 export const DEFAULT_EXAMPLE_USER_ADDRESS =
   "0x2C9139D5eC9206Bd779A71ecdB927C8cD42E9639";
+export const SUPER_BORING_CONTRACT = '0x...'; // Adresse mainnet
+
+export const superTokenABI = 'function getUnderlyingToken() external view returns (address)';
 
 export const macroForwarderContract = getContract({
   client: client,
@@ -46,7 +49,7 @@ export const torexContract = getContract({
   abi: [
     {
       type: "function",
-      name: "getFlowInfo",
+      name: "getPairedTokens",
       inputs: [],
       outputs: [
         {
