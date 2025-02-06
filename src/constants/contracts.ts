@@ -18,6 +18,7 @@ export const SUPER_BORING_CONTRACT = '0x...'; // Adresse mainnet
 
 export const superTokenABI = 'function getUnderlyingToken() external view returns (address)';
 
+
 export const macroForwarderContract = getContract({
   client: client,
   chain: base,

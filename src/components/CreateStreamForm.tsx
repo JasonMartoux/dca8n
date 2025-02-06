@@ -1,9 +1,10 @@
 import { chain } from "@/app/chain";
 import { client } from "@/app/client";
-import { superTokenABI, torexContract } from "@/constants/contracts";
-import { useEffect, useState } from "react";
-import { getContract, readContract } from "thirdweb";
-import { TokenIcon, TokenName, TokenProvider, TokenSymbol, useActiveAccount, useReadContract } from "thirdweb/react";
+import { DEFAULT_EXAMPLE_USER_ADDRESS, macroForwarderContract, SB_MACRO_ADDRESS, sbMacroContract, superTokenABI, torexContract, USDC_TOKEN_ADDRESS } from "@/constants/contracts";
+import { useEffect, useState, useCallback } from "react";
+import { getContract, prepareContractCall, readContract, sendAndConfirmTransaction, sendTransaction, toEther, toTokens, toUnits, toWei } from "thirdweb";
+import { approve, balanceOf } from "thirdweb/extensions/erc20";
+import { ConnectButton, TokenIcon, TokenName, TokenProvider, TokenSymbol, useActiveAccount, useReadContract } from "thirdweb/react";
 
 
 export const CreateStreamForm = () => {
@@ -14,59 +15,170 @@ export const CreateStreamForm = () => {
   })
   const [pairedUnderlyingTokens, setPairedUnderlyingTokens] = useState<string[]>();
   const [status, setStatus] = useState<string>('idle');
-  const [flowRateInput, setFlowRateInput] = useState<number>(0);
-  const [allocatedAmount, setAllocatedAmount] = useState<number>(0);
+  const [flowRateInput, setFlowRateInput] = useState<string>('0');
+  const [upgradeAmountInput, setUpgradeAmountInput] = useState<string>('0');
+  const [maxBalance, setMaxBalance] = useState<bigint>();
+  const [allowance, setAllowance] = useState<bigint>();
 
-  console.log(pairedUnderlyingTokens);
+
+  const fetchUnderlyingToken = useCallback(async () => {
+    if (pairedxTokens?.[0] && pairedxTokens?.[1]) {
+      const superTokenIn = getContract({
+        client,
+        chain,
+        address: pairedxTokens[0],
+      });
+
+      const superTokenOut = getContract({
+        client,
+        chain,
+        address: pairedxTokens[1],
+      });
+      const underlyingTokenIn = await readContract({
+        contract: superTokenIn,
+        method: superTokenABI,
+        params: []
+      })
+      const underlyingTokenOut = await readContract({
+        contract: superTokenOut,
+        method: superTokenABI,
+        params: []
+      })
+
+
+      setPairedUnderlyingTokens([underlyingTokenIn, underlyingTokenOut]);
+      fetchBalanceAndAllowance(account, underlyingTokenIn);
+    }
+  }, [pairedxTokens, client, chain, account]);
+
   useEffect(() => {
-    const fetchUnderlyingToken = async () => {
-      if (pairedxTokens?.[0] && pairedxTokens?.[1]) {
-        const superTokenIn = getContract({
-          client,
-          chain,
-          address: pairedxTokens[0],
-        });
+    if(account) {
+      fetchUnderlyingToken();
+    }
+  }, [account, fetchUnderlyingToken]);
 
-        const superTokenOut = getContract({
-          client,
-          chain,
-          address: pairedxTokens[1],
-        });
-        const underlyingTokenIn = await readContract({
-          contract: superTokenIn,
-          method: superTokenABI,
-          params: []
-        })
-        const underlyingTokenOut = await readContract({
-          contract: superTokenOut,
-          method: superTokenABI,
-          params: []
-        })
-  
-        setPairedUnderlyingTokens([underlyingTokenIn, underlyingTokenOut]);
-      }
+  const fetchBalanceAndAllowance = async (account,tokenAddress) => {
+    if(!account) {
+      console.error("Error fetching balance and allowance:", "No account connected");
+      return;
     };
+    try {
+      const tokenContract = getContract({
+        client,
+        chain,
+        address: tokenAddress,
+      });
+      const balanceToken = await balanceOf({
+        contract:tokenContract,
+        address: account.address,
+       });
 
-    fetchUnderlyingToken();
-  }, [pairedxTokens]);
+       const allowance = await readContract({
+        contract: tokenContract,
+        method: "function allowance(address owner, address spender) view returns (uint256)",
+        params: [account.address as string, macroForwarderContract.address],
+    });
 
+      console.log("Current Balance:", toTokens(balanceToken,6));
+      console.log("Current Allowance:", toTokens(allowance,6));
+       setMaxBalance(balanceToken);
+       setAllowance(allowance);
+
+    } catch (error) {
+      console.log(error);
+      console.error("Error fetching balance and allowance:", error);
+    }
+  };
+
+  /**
+   * Handles the submission of the form.
+   * @param e The form event.
+   *
+   * Checks if the wallet is connected and if the user has enough allowance.
+   * If not enough allowance, it will approve the allowance and wait for the transaction to be mined.
+   * Then it will create a new stream with the `macroForwarder` contract.
+   * If the transaction is successful, it will set the status to 'DCA position started successfully!'.
+   * If an error occurs, it will set the status to 'Error: <error message>'.
+   */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setStatus('Processing...');
 
     try {
       if (!account) {
-        setStatus('Error: No account');
-        return;
+        throw new Error('No wallet found');
       }
-      console.log(allocatedAmount);
-      console.log(flowRateInput);
+       console.log("input upgradeAmount:", upgradeAmountInput);
+       const upgradeAmountBN = toUnits(upgradeAmountInput,6); // Returns bigint
 
-     // const flowRate = (flowRateInput * 10 ** 18);
+       console.log("upgradeAmountBN:", upgradeAmountBN);
+       console.log("Allowance:", allowance);
 
+      // Check allowance
+      if (allowance !== null && upgradeAmountBN > allowance) {
+        const inTokenContract = getContract({
+          client,
+          chain,
+          address: pairedUnderlyingTokens[0],
+        });
+
+        const transaction = await approve({
+          contract: inTokenContract,
+          spender: macroForwarderContract.address,
+          amount: upgradeAmountBN,
+        });
+        
+        const receipt = await sendAndConfirmTransaction({ transaction, account });
+        setStatus('Approval successful. Starting DCA position.');
+        console.log("Approval successful. Starting DCA position.", receipt);
+        //if (underlyingTokenAddress !== ethers.ZeroAddress) {
+          //const erc20 = new ethers.Contract(underlyingTokenAddress, erc20ABI, signer);
+          //const approveTx = await erc20.approve(inTokenAddress, upgradeAmountBN);
+          //await approveTx.wait();
+        //}
+      }
+      
+        // Convert monthly flow rate to wei per second using thirdweb
+        const monthlyFlowRate = parseFloat(flowRateInput);
+        const secondsInMonth = 30 * 24 * 60 * 60;
+        const flowRatePerSecond = monthlyFlowRate / secondsInMonth;
+        console.log("Flow rate per second:", flowRatePerSecond);
+        // Convert to smallest units with 6 decimals (USDC)
+        //const flowRateBN = flowRatePerSecond.toFixed(6); // 6 decimals for USDC
+        // const flowRateBN = parseEther(flowRatePerSecond.toFixed(18));
+        // console.log("Flow rate in wei:", flowRateBN);
+        const flowRateBN = toWei(flowRatePerSecond.toFixed(18));
+
+        console.log("Allocated amount in wei:", upgradeAmountBN);
+
+
+        console.log(flowRateBN, upgradeAmountBN);
+        const params = await readContract({
+          contract: sbMacroContract,
+          method: "function getParams(address torexAddr, int96 flowRate, address distributor, address referrer, uint256 upgradeAmount) public pure returns (bytes memory)",
+          params: [torexContract.address, flowRateBN, '', '', upgradeAmountBN],
+        })
+        console.log('Generated params:', params);
+
+
+        console.log('Submitting runMacro transaction...');
+        const tx = await  prepareContractCall({
+          contract: macroForwarderContract,
+          method: 'function runMacro(address macro, bytes memory params) external',
+          params: [sbMacroContract.address, params],
+        })
+
+        await sendAndConfirmTransaction({
+          transaction: tx,
+          account,
+        });
+
+
+      setStatus('DCA position started successfully!');
       setStatus('Success');
     } catch (error) {
-      setStatus('Error');
+      setStatus('Error: ' + error?.message);
+      console.error(error);
     }
     
   }
@@ -88,7 +200,7 @@ export const CreateStreamForm = () => {
               </div>
           </TokenProvider>
         </div>
-        <div className="divider  divider-horizontal">In to</div>
+        <div className="divider divider-horizontal">In to</div>
         <div className="card bg-primary-300  border border-success rounded-box grid h-20 flex-grow place-items-center">
           <TokenProvider
             address={pairedUnderlyingTokens?.[1]}
@@ -109,12 +221,12 @@ export const CreateStreamForm = () => {
           </label>
           <input
             type="number"
-            placeholder="0.0"
+            placeholder="0"
             id="flowRateInput"
-            // value={flowRateInput}
-            // onChange={(e) => setFlowRateInput(parseFloat(e.target.value))}
+            value={flowRateInput}
+            onChange={(e) => setFlowRateInput((e.target.value))}
             className="input input-bordered"
-            step="0.01"
+            step={1}
           />
           /mois
         </div>
@@ -125,18 +237,25 @@ export const CreateStreamForm = () => {
           </label>
           <input
             type="number"
-            placeholder="0.0"
-            id="allocatedAmount"
-            // value={allocatedAmount}
-            // onChange={(e) => setAllocatedAmount(parseFloat(e.target.value))}
+            placeholder="0"
+            id="upgradeAmountInput"
+            value={upgradeAmountInput}
+            onChange={(e) => setUpgradeAmountInput(e.target.value)}
             className="input input-bordered"
-            step="0.01"
+            step={0.01}
           />
         </div>
+        {account ? (
+          <button type="submit" className="btn btn-primary w-full mt-4 gap-2">
+            <span>🚀 Lancer le stream</span>
+          </button>
+      ) : (
+        <ConnectButton
+          client={client}
+          chain={chain}
+        />
+      )}
 
-        <button type="submit" className="btn btn-primary w-full mt-4 gap-2">
-          <span>🚀 Lancer le stream</span>
-        </button>
       </form>
       {status && (
         <div className="mt-4 text-sm text-gray-500">
