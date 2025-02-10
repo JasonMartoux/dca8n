@@ -3,6 +3,6 @@ export interface Stream {
   inToken: string;
   outToken: string;
   flowRate: string;
-  status: 'actif' | 'paused' | 'completed' | 'error';
+  status: "actif" | "paused" | "completed" | "error";
   startDate: string;
 }

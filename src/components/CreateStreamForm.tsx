@@ -2,9 +2,10 @@ import { chain } from "@/app/chain";
 import { client } from "@/app/client";
 import { DEFAULT_EXAMPLE_USER_ADDRESS, macroForwarderContract, SB_MACRO_ADDRESS, sbMacroContract, superTokenABI, torexContract, USDC_TOKEN_ADDRESS } from "@/constants/contracts";
 import { useEffect, useState, useCallback } from "react";
-import { getContract, prepareContractCall, readContract, sendAndConfirmTransaction, sendTransaction, toEther, toTokens, toUnits, toWei } from "thirdweb";
+import { getContract, prepareContractCall, readContract, sendAndConfirmTransaction, sendTransaction, toEther, toTokens, toUnits, toWei, ZERO_ADDRESS } from "thirdweb";
 import { approve, balanceOf } from "thirdweb/extensions/erc20";
 import { ConnectButton, TokenIcon, TokenName, TokenProvider, TokenSymbol, useActiveAccount, useReadContract } from "thirdweb/react";
+import { maxUint256 } from "thirdweb/utils";
 
 
 export const CreateStreamForm = () => {
@@ -57,7 +58,7 @@ export const CreateStreamForm = () => {
     }
   }, [account, fetchUnderlyingToken]);
 
-  const fetchBalanceAndAllowance = async (account,tokenAddress) => {
+  const fetchBalanceAndAllowance = async (account: string,tokenAddress: string) => {
     if(!account) {
       console.error("Error fetching balance and allowance:", "No account connected");
       return;
@@ -122,16 +123,16 @@ export const CreateStreamForm = () => {
           address: pairedUnderlyingTokens[0],
         });
 
-        const transaction = await approve({
+        const tx = await prepareContractCall({
           contract: inTokenContract,
-          spender: macroForwarderContract.address,
-          amount: upgradeAmountBN,
+          method: "function approve(address spender, uint256 amount) external returns (bool)",
+          params: [macroForwarderContract.address, upgradeAmountBN],
         });
         
-        const receipt = await sendAndConfirmTransaction({ transaction, account });
+        const receipt = await sendAndConfirmTransaction({ transaction: tx, account });
         setStatus('Approval successful. Starting DCA position.');
         console.log("Approval successful. Starting DCA position.", receipt);
-        //if (underlyingTokenAddress !== ethers.ZeroAddress) {
+        //if (underlyingTokenAddress !== ZERO_ADDRESS) {
           //const erc20 = new ethers.Contract(underlyingTokenAddress, erc20ABI, signer);
           //const approveTx = await erc20.approve(inTokenAddress, upgradeAmountBN);
           //await approveTx.wait();
@@ -156,7 +157,7 @@ export const CreateStreamForm = () => {
         const params = await readContract({
           contract: sbMacroContract,
           method: "function getParams(address torexAddr, int96 flowRate, address distributor, address referrer, uint256 upgradeAmount) public pure returns (bytes memory)",
-          params: [torexContract.address, flowRateBN, '', '', upgradeAmountBN],
+          params: [torexContract.address, flowRateBN, ZERO_ADDRESS, ZERO_ADDRESS, upgradeAmountBN],
         })
         console.log('Generated params:', params);
 
