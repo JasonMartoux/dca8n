@@ -1,5 +1,4 @@
 import { useState, useEffect, memo, useMemo } from "react";
-import { formatUnits } from "ethers";
 import { toEther } from "thirdweb";
 
 interface FlowingBalanceProps {

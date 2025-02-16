@@ -19,6 +19,7 @@
   },
   "devDependencies": {
     "@catppuccin/daisyui": "^1.2.1",
+    "@next/eslint-plugin-next": "^15.1.7",
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",

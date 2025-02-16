@@ -21,11 +21,19 @@ interface PoolMember {
       deposit: string;
       currentFlowRate: string;
       createdAtTimestamp: string;
+      token: {
+        symbol: string;
+        name: string;
+      };
     }[];
     poolMemberships: {
       totalAmountClaimed: string;
       pool: {
-        perUnitSettledValue: string;
+        token: {
+          symbol: string;
+          name: string;
+        };
+        perUnitSettledValue: bigint;
       };
     }[];
   };

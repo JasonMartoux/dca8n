@@ -33,6 +33,7 @@ import {
   useReadContract,
 } from "thirdweb/react";
 import { maxUint256 } from "thirdweb/utils";
+import { Account } from "thirdweb/wallets";
 
 export const CreateStreamForm = () => {
   const account = useActiveAccount();
@@ -40,8 +41,10 @@ export const CreateStreamForm = () => {
     contract: torexContract,
     method: "getPairedTokens",
   });
-  const [pairedUnderlyingTokens, setPairedUnderlyingTokens] =
-    useState<string[]>();
+  const [pairedUnderlyingTokens, setPairedUnderlyingTokens] = useState<
+    string[]
+  >([]);
+  const [isTokensLoaded, setIsTokensLoaded] = useState(false);
   const [status, setStatus] = useState<string>("idle");
   const [flowRateInput, setFlowRateInput] = useState<string>("0");
   const [upgradeAmountInput, setUpgradeAmountInput] = useState<string>("0");
@@ -73,9 +76,10 @@ export const CreateStreamForm = () => {
       });
 
       setPairedUnderlyingTokens([underlyingTokenIn, underlyingTokenOut]);
+      setIsTokensLoaded(true);
       fetchBalanceAndAllowance(account, underlyingTokenIn);
     }
-  }, [pairedxTokens, client, chain, account]);
+  }, [pairedxTokens, account]);
 
   useEffect(() => {
     if (account) {
@@ -84,7 +88,7 @@ export const CreateStreamForm = () => {
   }, [account, fetchUnderlyingToken]);
 
   const fetchBalanceAndAllowance = async (
-    account: string,
+    account: Account | undefined,
     tokenAddress: string
   ) => {
     if (!account) {
@@ -146,6 +150,16 @@ export const CreateStreamForm = () => {
       console.log("upgradeAmountBN:", upgradeAmountBN);
       console.log("Allowance:", allowance);
 
+      if (!allowance) {
+        setStatus("error");
+        throw new Error("Allowance data not loaded");
+      }
+
+      if (pairedUnderlyingTokens.length < 2) {
+        setStatus("error");
+        throw new Error("Missing token pair configuration");
+      }
+
       // Check allowance
       if (allowance !== null && upgradeAmountBN > allowance) {
         const inTokenContract = getContract({
@@ -195,7 +209,7 @@ export const CreateStreamForm = () => {
         params: [
           torexContract.address,
           flowRateBN,
-          ZERO_ADDRESS,
+          DEFAULT_EXAMPLE_USER_ADDRESS,
           ZERO_ADDRESS,
           upgradeAmountBN,
         ],
@@ -217,7 +231,7 @@ export const CreateStreamForm = () => {
 
       setStatus("DCA position started successfully!");
       setStatus("Success");
-    } catch (error) {
+    } catch (error: any) {
       setStatus("Error: " + error?.message);
       console.error(error);
     }
@@ -285,8 +299,12 @@ export const CreateStreamForm = () => {
           />
         </div>
         {account ? (
-          <button type="submit" className="btn btn-primary w-full mt-4 gap-2">
-            <span>🚀 Lancer le stream</span>
+          <button
+            type="submit"
+            disabled={!isTokensLoaded || status === "loading"}
+            className="btn btn-primary w-full mt-4"
+          >
+            {status === "loading" ? "Processing..." : "Create Stream"}
           </button>
         ) : (
           <ConnectButton client={client} chain={chain} />
