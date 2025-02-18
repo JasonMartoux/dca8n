@@ -3,11 +3,8 @@ import { client } from "@/app/client";
 import {
   DEFAULT_EXAMPLE_USER_ADDRESS,
   macroForwarderContract,
-  SB_MACRO_ADDRESS,
   sbMacroContract,
-  superTokenABI,
   torexContract,
-  USDC_TOKEN_ADDRESS,
 } from "@/constants/contracts";
 import { useEffect, useState, useCallback } from "react";
 import {
@@ -15,8 +12,6 @@ import {
   prepareContractCall,
   readContract,
   sendAndConfirmTransaction,
-  sendTransaction,
-  toEther,
   toTokens,
   toUnits,
   toWei,
@@ -33,7 +28,6 @@ import {
   useReadContract,
 } from "thirdweb/react";
 import { maxUint256 } from "thirdweb/utils";
-import { Account } from "thirdweb/wallets";
 
 export const CreateStreamForm = () => {
   const account = useActiveAccount();
@@ -41,18 +35,17 @@ export const CreateStreamForm = () => {
     contract: torexContract,
     method: "getPairedTokens",
   });
-  const [pairedUnderlyingTokens, setPairedUnderlyingTokens] = useState<
-    string[]
-  >([]);
+  const [pairedUnderlyingTokens, setPairedUnderlyingTokens] = useState<string[]>([]);
   const [isTokensLoaded, setIsTokensLoaded] = useState(false);
   const [status, setStatus] = useState<string>("idle");
   const [flowRateInput, setFlowRateInput] = useState<string>("0");
   const [upgradeAmountInput, setUpgradeAmountInput] = useState<string>("0");
   const [maxBalance, setMaxBalance] = useState<bigint>();
-  const [allowance, setAllowance] = useState<bigint>();
+  const [superTokenInBalance, setSuperTokenInBalance] = useState<bigint>(0n);
+  const [allowance, setAllowance] = useState<bigint>(0n);
 
   const fetchUnderlyingToken = useCallback(async () => {
-    if (pairedxTokens?.[0] && pairedxTokens?.[1]) {
+    if (pairedxTokens?.[0] && pairedxTokens?.[1] && account) {
       const superTokenIn = getContract({
         client,
         chain,
@@ -66,18 +59,25 @@ export const CreateStreamForm = () => {
       });
       const underlyingTokenIn = await readContract({
         contract: superTokenIn,
-        method: superTokenABI,
+        method: "function getUnderlyingToken() external view returns (address)",
         params: [],
+      });
+
+      const superTokenInBalance = await readContract({
+        contract: superTokenIn,
+        method: "function balanceOf(address owner) view returns (uint balance)",
+        params: [account?.address],
       });
       const underlyingTokenOut = await readContract({
         contract: superTokenOut,
-        method: superTokenABI,
+        method: "function getUnderlyingToken() external view returns (address)",
         params: [],
       });
 
       setPairedUnderlyingTokens([underlyingTokenIn, underlyingTokenOut]);
       setIsTokensLoaded(true);
-      fetchBalanceAndAllowance(account, underlyingTokenIn);
+      setSuperTokenInBalance(superTokenInBalance);
+      fetchBalanceAndAllowance(account?.address, underlyingTokenIn);
     }
   }, [pairedxTokens, account]);
 
@@ -88,12 +88,12 @@ export const CreateStreamForm = () => {
   }, [account, fetchUnderlyingToken]);
 
   const fetchBalanceAndAllowance = async (
-    account: Account | undefined,
+    accountAddress: string,
     tokenAddress: string
   ) => {
     if (!account) {
       console.error(
-        "Error fetching balance and allowance:",
+        "Error fetching balance and allowance address:",
         "No account connected"
       );
       return;
@@ -106,14 +106,14 @@ export const CreateStreamForm = () => {
       });
       const balanceToken = await balanceOf({
         contract: tokenContract,
-        address: account.address,
+        address: accountAddress,
       });
 
       const allowance = await readContract({
         contract: tokenContract,
         method:
           "function allowance(address owner, address spender) view returns (uint256)",
-        params: [account.address as string, macroForwarderContract.address],
+        params: [accountAddress, macroForwarderContract.address],
       });
 
       console.log("Current Balance:", toTokens(balanceToken, 6));
@@ -155,37 +155,73 @@ export const CreateStreamForm = () => {
         throw new Error("Allowance data not loaded");
       }
 
-      if (pairedUnderlyingTokens.length < 2) {
+      if (pairedUnderlyingTokens.length < 2 || (pairedxTokens?.length ?? 0) < 2) {
         setStatus("error");
         throw new Error("Missing token pair configuration");
       }
 
       // Check allowance
-      if (allowance !== null && upgradeAmountBN > allowance) {
+      if (allowance !== null && upgradeAmountBN > allowance && pairedxTokens?.[0]) {
+      //if (false) {
         const inTokenContract = getContract({
           client,
           chain,
           address: pairedUnderlyingTokens[0],
         });
 
-        const tx = await prepareContractCall({
+        const tx = prepareContractCall({
           contract: inTokenContract,
           method:
             "function approve(address spender, uint256 amount) external returns (bool)",
-          params: [macroForwarderContract.address, upgradeAmountBN],
+          params: [ pairedxTokens[0] , upgradeAmountBN],
         });
 
         const receipt = await sendAndConfirmTransaction({
           transaction: tx,
           account,
         });
-        setStatus("Approval successful. Starting DCA position.");
-        console.log("Approval successful. Starting DCA position.", receipt);
+
+        setStatus("Approval of tokens completed");
+        console.log("Approval successful.", receipt);
+
+        // const tokenInXContract = getContract({
+        //   client,
+        //   chain,
+        //   address: pairedxTokens[0].toLowerCase(),
+        // });
+
+        // const tx2 = prepareContractCall({
+        //   contract: tokenInXContract,
+        //   method:
+        //     "function upgrade(uint256 amount) external",
+        //   params: [upgradeAmountBN],
+        // });
+
+        // console.log("Upgrade tokens....", receipt);
+
+        // const receipt2 = await sendAndConfirmTransaction({
+        //   transaction: tx2,
+        //   account,
+        // });
+
+        // setStatus("Upgrade of tokens completed");
+        // console.log("Upgrade successful. starting DCA", receipt);
+
+        // const balanceToken = await balanceOf({
+        //   contract: tokenInXContract,
+        //   address: account.address,
+        // });
+
+        // console.log("Balance of token:", balanceToken);
+
+        return;
+
         //if (underlyingTokenAddress !== ZERO_ADDRESS) {
         //const erc20 = new ethers.Contract(underlyingTokenAddress, erc20ABI, signer);
         //const approveTx = await erc20.approve(inTokenAddress, upgradeAmountBN);
         //await approveTx.wait();
         //}
+        
       }
 
       // Convert monthly flow rate to wei per second using thirdweb
@@ -223,6 +259,8 @@ export const CreateStreamForm = () => {
           "function runMacro(address macro, bytes memory params) external",
         params: [sbMacroContract.address, params],
       });
+
+      console.log("Sending:", tx);
 
       await sendAndConfirmTransaction({
         transaction: tx,
@@ -270,7 +308,7 @@ export const CreateStreamForm = () => {
       <form className="space-y-4" onSubmit={handleSubmit}>
         <div className="form-control">
           <label className="label">
-            <span className="label-text">Allocation par mois</span>
+            <span className="label-text">Monthly flow rate</span>
           </label>
           <input
             type="number"
@@ -281,12 +319,25 @@ export const CreateStreamForm = () => {
             className="input input-bordered"
             step={1}
           />
-          /mois
         </div>
 
         <div className="form-control">
           <label className="label">
-            <span className="label-text">Montant total a allouer</span>
+            <span className="label-text">Amount to allocate</span>
+            <span className="badge badge-info">
+          { pairedxTokens ?  (<TokenProvider
+            address={pairedxTokens[0]}
+            chain={chain}
+            client={client}
+          >
+            <div className="flex items-center gap-2">
+              <TokenIcon className="w-4 h-4" />
+              Current Allocated Amount:
+              {toTokens(superTokenInBalance, 18)}<TokenSymbol />
+            </div>
+          </TokenProvider> ) : ''}
+
+            </span>
           </label>
           <input
             type="number"

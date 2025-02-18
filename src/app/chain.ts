@@ -7,4 +7,8 @@ import { base } from "thirdweb/chains";
 //     displayName: base.displayName,
 // });
 
-export const chain = defineChain(base);
+ export const chain = defineChain(base);
+//  export const chain = defineChain({
+//     id: base.id,
+//     rpc: "https://virtual.base.rpc.tenderly.co/1b0db10e-a169-4ce4-837d-695c75147f38",
+//  });
