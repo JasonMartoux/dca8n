@@ -1,27 +1,23 @@
 import { chain } from "@/app/chain";
 import { client } from "@/app/client";
 import {
-  DEFAULT_EXAMPLE_USER_ADDRESS,
+  DEFAULT_REFERAL_USER_ADDRESS,
   macroForwarderContract,
-  sb712MacroContract,
   sbMacroContract,
   torexContract,
 } from "@/constants/contracts";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
 import {
   getContract,
   prepareContractCall,
   readContract,
   sendAndConfirmTransaction,
-  stringToBytes,
-  toEther,
-  toHex,
   toTokens,
   toUnits,
   toWei,
   ZERO_ADDRESS,
 } from "thirdweb";
-import { approve, balanceOf } from "thirdweb/extensions/erc20";
+import { balanceOf } from "thirdweb/extensions/erc20";
 import {
   ConnectButton,
   TokenIcon,
@@ -31,7 +27,6 @@ import {
   useActiveAccount,
   useReadContract,
 } from "thirdweb/react";
-import { maxUint256 } from "thirdweb/utils";
 
 export const CreateStreamForm = () => {
   const account = useActiveAccount();
@@ -165,8 +160,8 @@ export const CreateStreamForm = () => {
       }
 
       const flowratePerMonth = parseFloat(flowRateInput);
-      const distributor = DEFAULT_EXAMPLE_USER_ADDRESS;
-      const referrer = ZERO_ADDRESS;
+      const distributor = DEFAULT_REFERAL_USER_ADDRESS;
+      const referrer = DEFAULT_REFERAL_USER_ADDRESS;
       let upgradeAmount = upgradeAmountInput;
 
       // Convert flowrate from tokens/month to wei/second

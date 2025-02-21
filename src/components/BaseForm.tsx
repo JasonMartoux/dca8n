@@ -1,6 +1,6 @@
 "use client";
 import {
-  DEFAULT_EXAMPLE_USER_ADDRESS,
+  DEFAULT_REFERAL_USER_ADDRESS,
   macroForwarderContract,
   sbMacroContract,
   torexContract,
@@ -214,8 +214,8 @@ export const BaseForm = ({ account }: BaseFormProps) => {
       params: [
         torexContract.address.toLocaleLowerCase(),
         flowrate,
-        DEFAULT_EXAMPLE_USER_ADDRESS,
-        ZERO_ADDRESS,
+        DEFAULT_REFERAL_USER_ADDRESS,
+        DEFAULT_REFERAL_USER_ADDRESS,
         toWei(upgradeAmountInput),
       ],
     });
