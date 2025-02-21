@@ -139,7 +139,7 @@ export const BaseForm = ({ account }: BaseFormProps) => {
       console.error("Contracts not initialized");
       return;
     }
-
+    console.log("approve", allowanceAmount, underlyingTokenDecimals);
     const amount = toUnits(allowanceAmount, underlyingTokenDecimals).toString();
 
     try {
@@ -194,11 +194,18 @@ export const BaseForm = ({ account }: BaseFormProps) => {
         underlyingTokenDecimals as number
       )
     ) {
-      alert(
-        "Upgrade amount exceeds your allowance. Please approve a higher amount first."
-      );
-      return;
+      const transaction = approve({
+        contract: underlyingTokenInContract as ThirdwebContract,
+        spender: superTokenInContract?.address as string,
+        amount: toUnits(
+          upgradeAmountInput,
+          underlyingTokenDecimals as number
+        ).toString() as string,
+      });
+
+      await sendAndConfirmTransaction({ transaction, account });
     }
+
     // Contract interactions
     const params = await readContract({
       contract: sbMacroContract,
@@ -265,7 +272,7 @@ export const BaseForm = ({ account }: BaseFormProps) => {
       </div>
       {torexContract && superTokenInContract && underlyingTokenInContract ? (
         <div>
-          {/* <div id="approvalForm" className="space-y-4 mt-4">
+          {/* {<div id="approvalForm" className="space-y-4 mt-4">
                     <h2>ERC20 Approval for Upgrade to SuperToken</h2>
                     <p id="tokenBalance"></p>
                     <p id="currentAllowance"></p>
@@ -288,7 +295,7 @@ export const BaseForm = ({ account }: BaseFormProps) => {
                             Approve Allowance
                         </button>
                     </form>
-                </div> */}
+                </div>} */}
 
           <div id="createStreamForm" className="space-y-4 mt-6">
             <form className="space-y-4" onSubmit={handleStartDCA}>
