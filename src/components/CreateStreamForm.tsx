@@ -46,21 +46,20 @@ export const CreateStreamForm = () => {
   const [status, setStatus] = useState<string>("idle");
   const [flowRateInput, setFlowRateInput] = useState<string>("0");
   const [upgradeAmountInput, setUpgradeAmountInput] = useState<string>("0");
-  const [underlyingTokenInBalance, setUnderlyingTokenInBalance] = useState<bigint>(0n);
+  const [underlyingTokenInBalance, setUnderlyingTokenInBalance] =
+    useState<bigint>(0n);
   const [superTokenInBalance, setSuperTokenInBalance] = useState<bigint>(0n);
   const [allowance, setAllowance] = useState<bigint>(0n);
 
   const fetchUnderlyingToken = async () => {
-    const [superTokenAddress, ] = await readContract({
+    const [superTokenAddress] = await readContract({
       contract: torexContract,
       method: "getPairedTokens",
       params: [],
     });
 
-    return
-      //fetchBalanceAndAllowance(account?.address, underlyingTokenIn);
-
-
+    return;
+    //fetchBalanceAndAllowance(account?.address, underlyingTokenIn);
   };
 
   useEffect(() => {
@@ -200,8 +199,8 @@ export const CreateStreamForm = () => {
       //3086419753086n
 
       //if (upgradeAmountBN > superTokenInBalance) {
-        await approveToken(upgradeAmountBN);
-     // }
+      await approveToken(upgradeAmountBN);
+      // }
 
       console.log("upgradeAmountWei:", upgradeAmountBN);
       console.log("superTokenInBalance:", superTokenInBalance);
@@ -217,17 +216,17 @@ export const CreateStreamForm = () => {
           distributor,
           referrer,
           //superTokenInBalance > upgradeAmountBN ? upgradeAmountBN : BigInt(0),
-          upgradeAmountBN
+          upgradeAmountBN,
         ],
       });
-      console.log("params:",[
-          torexContract.address.toLocaleLowerCase(),
-          flowrate,
-          distributor,
-          referrer,
-          //superTokenInBalance > upgradeAmountBN ? upgradeAmountBN : BigInt(0),
-          toWei(upgradeAmount)
-        ],);
+      console.log("params:", [
+        torexContract.address.toLocaleLowerCase(),
+        flowrate,
+        distributor,
+        referrer,
+        //superTokenInBalance > upgradeAmountBN ? upgradeAmountBN : BigInt(0),
+        toWei(upgradeAmount),
+      ]);
       console.log("paramsEncoded:", params);
 
       const tx = prepareContractCall({

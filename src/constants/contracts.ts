@@ -16,7 +16,9 @@ export const GDA_FORWARDER_ADDRESS =
 export const DEFAULT_EXAMPLE_USER_ADDRESS =
   "0x2C9139D5eC9206Bd779A71ecdB927C8cD42E9639";
 
-export const torexAbi = ['function getPairedTokens() view returns (address, address)'];
+export const torexAbi = [
+  "function getPairedTokens() view returns (address, address)",
+];
 export const superTokenABI = [
   "function getUnderlyingToken() external view returns (address)",
   "function transferFrom(address from, address to, uint value)",
