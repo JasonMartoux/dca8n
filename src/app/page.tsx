@@ -6,10 +6,10 @@ import { StreamList } from "../components/StreamList";
 import { ApolloProvider } from "@apollo/client";
 import { apolloClient } from "@/lib/appoloClient";
 import { useActiveAccount } from "thirdweb/react";
+import { BaseForm } from "@/components/BaseForm";
 
 export default function Home() {
   const account = useActiveAccount();
-  console.log("account:", account?.address);
   return (
     <>
       <Navbar />
@@ -17,7 +17,8 @@ export default function Home() {
         <ApolloProvider client={apolloClient}>
           {account && account.address ? (
             <>
-              <CreateStreamForm />
+              {/* <CreateStreamForm /> */}
+              <BaseForm account={account} />
               <StreamList />
             </>
           ) : (
