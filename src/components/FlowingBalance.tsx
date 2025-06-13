@@ -1,5 +1,6 @@
 import { useState, useEffect, memo, useMemo } from "react";
 import { toEther } from "thirdweb";
+import { FlowingBalanceAnimation } from "./FlowingBalanceAnimation";
 
 interface FlowingBalanceProps {
   startingBalance: bigint;
@@ -105,16 +106,14 @@ const FlowingBalanceComponent = memo(
     );
 
     const decimalPlaces = useSignificantFlowingDecimal(flowRate);
-    const formattedBalance = toEther(balance);
 
     return (
-      <div className={`flowing-balance ${className}`}>
-        {format
-          ? format(parseFloat(formattedBalance))
-          : decimalPlaces !== undefined
-          ? toFixedUsingString(formattedBalance, decimalPlaces)
-          : formattedBalance}
-      </div>
+      <FlowingBalanceAnimation
+        balance={balance}
+        className={className}
+        decimalPlaces={decimalPlaces}
+        format={format}
+      />
     );
   }
 );
